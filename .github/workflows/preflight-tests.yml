@@ -1,0 +1,53 @@
+name: Preflight results from IBM Power
+  
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build
+  Preflight_results:
+      runs-on: ppc64le
+      steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+          
+      - name: check the Power version
+        run: |
+          sudo lscpu
+      - name: Do the cleanup
+        run: |
+          rm -rf preflight-linux-.*
+          rm -rf /usr/local/bin/preflight
+      - name: Install preflight 
+        run: |
+          sudo curl -s https://api.github.com/repos/redhat-openshift-ecosystem/openshift-preflight/releases/latest|grep browser_download_url |grep ppc64le|cut -d : -f 2,3|tr -d \"|xargs curl -LO
+          sudo chmod u+x preflight-linux-ppc64le
+          sudo mv preflight-linux-ppc64le /usr/local/bin/preflight
+          sudo chmod 777 /usr/local/bin/preflight
+          preflight --version
+          
+      - name: Check container image
+        run: |
+          export PFLT_LOGLEVEL=trace
+          export PFLT_JUNIT=true
+          preflight check container quay.io/mayurwaghmode111/demo-container-image:power
+          
+      - name: Check junit xml results
+        run: |
+          cat artifacts/results-junit.xml
+          ls artifacts/
+      
+      - name: Check Preflight logs
+        run: |
+          cat preflight.log
+       
+      - name: Check results output
+        run: |
+          cat artifacts/results.json
